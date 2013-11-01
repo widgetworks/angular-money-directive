@@ -4,9 +4,11 @@
  */
 
 angular.module('fiestah.money', [])
-.directive('money', function () {
+.directive('money', function ($filter) {
   'use strict';
-
+  
+  var numberFilter = $filter('number');
+  var NUMBER_REPLACE_REGEXP = /[^\d.+\-]/g;  // Keep numbers, delimiters and signs.
   var NUMBER_REGEXP = /^\s*(\-|\+)?(\d+|(\d*(\.\d*)))\s*$/;
   function isUndefined(value) {
     return typeof value == 'undefined';
@@ -19,12 +21,34 @@ angular.module('fiestah.money', [])
     restrict: 'A',
     require: 'ngModel',
     link: function (scope, el, attr, ctrl) {
-      function round(num) { 
-        return Math.round(num * 100) / 100;
+      // 2013-11-01 Coridyn:
+      // TODO: Handle precision here - default to 2.
+      function round(num, precision) { 
+        if (typeof precision != 'number'){
+          precision = 2;
+        }
+        var factor = Math.pow(10, precision);
+        return Math.round(num * factor) / factor;
       }
 
       var min = parseFloat(attr.min) || 0;
-
+      
+      // TODO:
+      //  - Don't clear the field if there are invalid characters.
+      //  - Specify precision.
+      //  - Format output numbers (e.g. with commas).
+      var precision = parseInt(attr.money, 10);
+      if (isNaN(precision)){
+        precision = 2;
+      }
+      
+      // 2013-11-01 Coridyn:
+      // Strip invalid characters.
+      ctrl.$parsers.push(function(value){
+        NUMBER_REPLACE_REGEXP.lastIndex = 0;  // Reset lastIndex for IE.
+        return value.replace(NUMBER_REPLACE_REGEXP, '');
+      });
+    
       // Returning NaN so that the formatter won't render invalid chars
       ctrl.$parsers.push(function(value) {
 
@@ -75,20 +99,31 @@ angular.module('fiestah.money', [])
         ctrl.$formatters.push(maxValidator);
       }
 
-      // Round off to 2 decimal places
+      // Round off to 'precision' decimal places
       ctrl.$parsers.push(function (value) {
-        return value ? round(value) : value;
+        return value ? round(value, precision) : value;
       });
       ctrl.$formatters.push(function (value) {
-        return value ? value.toFixed(2) : value;
+        return value ? numberFilter(value, precision) : value;
       });
 
       el.bind('blur', function () {
         var value = ctrl.$modelValue;
-        if (value) {
-          ctrl.$viewValue = round(value).toFixed(2);
+        
+        // 2013-11-01 Coridyn:
+        // Run through all of the formatters.
+        if (value){
+          for (var i = 0, formatters = ctrl.$formatters, len = formatters.length; i < len; i++){
+            value = formatters[i](value);
+          }
+          ctrl.$viewValue = value;
           ctrl.$render();
         }
+        
+        // if (value) {
+        //   ctrl.$viewValue = round(value, precision).toFixed(precision);
+        //   ctrl.$render();
+        // }
       });
     }
   };
