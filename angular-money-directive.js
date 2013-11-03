@@ -9,7 +9,8 @@ angular.module('fiestah.money', [])
   
   var numberFilter = $filter('number');
   var NUMBER_REPLACE_REGEXP = /[^\d.+\-]/g;  // Keep numbers, delimiters and signs.
-  var NUMBER_REGEXP = /^\s*(\-|\+)?(\d+|(\d*(\.\d*)))\s*$/;
+  // var NUMBER_REGEXP = /^\s*(\-|\+)?(\d+|(\d*(\.\d*)))\s*$/;
+  var NUMBER_REGEXP = /^\s*(\-|\+)?(\(?\d*\.?\d*\)?)?\s*$/;
   function isUndefined(value) {
     return typeof value == 'undefined';
   }
@@ -30,8 +31,15 @@ angular.module('fiestah.money', [])
         var factor = Math.pow(10, precision);
         return Math.round(num * factor) / factor;
       }
-
-      var min = parseFloat(attr.min) || 0;
+      
+      var min = 0;
+      if (attr.min){
+        if (attr.min == 'NEGATIVE_INFINITY'){
+          min = Number.NEGATIVE_INFINITY;
+        } else {
+          min = parseFloat(attr.min) || 0;
+        }
+      }
       
       // TODO:
       //  - Don't clear the field if there are invalid characters.
