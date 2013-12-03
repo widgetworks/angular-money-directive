@@ -1,6 +1,6 @@
 {
   "name": "angular-money-directive",
-  "version": "0.0.1-wiwo.3",
+  "version": "0.0.1-wiwo.3.SNAPSHOT",
   "main": "angular-money-directive.js",
   "ignore": [
     "**/.*",
