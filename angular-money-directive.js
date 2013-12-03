@@ -4,7 +4,7 @@
  */
 
 angular.module('fiestah.money', [])
-.directive('money', function ($filter) {
+.directive('money', ['$filter', function ($filter) {
   'use strict';
   
   var numberFilter = $filter('number');
@@ -135,4 +135,4 @@ angular.module('fiestah.money', [])
       });
     }
   };
-});
+}]);
