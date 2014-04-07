@@ -22,6 +22,8 @@ angular.module('fiestah.money', [])
     restrict: 'A',
     require: 'ngModel',
     link: function (scope, el, attr, ctrl) {
+      var min = 0;
+      
       // 2013-11-01 Coridyn:
       // TODO: Handle precision here - default to 2.
       function round(num, precision) { 
@@ -32,13 +34,24 @@ angular.module('fiestah.money', [])
         return Math.round(num * factor) / factor;
       }
       
-      var min = 0;
-      if (attr.min){
-        if (attr.min == 'NEGATIVE_INFINITY'){
-          min = Number.NEGATIVE_INFINITY;
-        } else {
-          min = parseFloat(attr.min) || 0;
+      function setMin(newMin){
+          if (newMin == 'NEGATIVE_INFINITY'){
+            min = Number.NEGATIVE_INFINITY;
+          } else {
+            min = parseFloat(newMin) || 0;
+          }
         }
+      
+      if (attr.min){
+        // 2014-04-07 Coridyn:
+        // Add watcher on the max validator.
+        attr.$observe('min', function(newMin){
+          setMin(newMin);
+          ctrl.$setViewValue(ctrl.$viewValue);
+        });
+        
+        // Set the default minimum value.
+        setMin(attr.min);
       }
       
       // TODO:
@@ -92,7 +105,14 @@ angular.module('fiestah.money', [])
       ctrl.$formatters.push(minValidator);
 
       if (attr.max) {
+        // 2014-04-07 Coridyn:
+        // Add watcher on the max validator.
         var max = parseFloat(attr.max);
+        attr.$observe('max', function(newMax){
+          max = parseFloat(newMax);
+          ctrl.$setViewValue(ctrl.$viewValue);
+        });
+        
         var maxValidator = function(value) {
           if (!isEmpty(value) && value > max) {
             ctrl.$setValidity('max', false);
