@@ -10,14 +10,34 @@
  *
  * parseFloat acceptable input: 0-9 + - .
  * all other characters stripped out, if nothing remains after stripping, then ng-invalid = true stop further processing
- *
- *
- * input        outcome
- * asdf         number invalid
- * 1,000        valid, number = 1000
- *
- *
- *
+ * 
+ * Directive use:
+ * 
+ * <input type="text"
+ *        money="precision"           // defaults to 2
+ *        [money-clamp="true|false"]  // defaults to "true"
+ *        [min="{{expression}}"]      // defaults to Number.MAX_VALUE
+ *        [max="{{expression}}"]      // defaults to 0 (if attribute specified).
+ *                                    // Allows 'NEGATIVE_INFINITY' for no minimum value.
+ *        >
+ * 
+ * With these configuration attributes:
+ *  - min: 333
+ *  - max: 9999
+ * 
+ * Results:
+ * 
+ *  input    |   clamped?   |    outcome     |   valid?   |
+ * --------------------------------------------------------
+ *  asdf     |    yes       |    333         |     yes
+ *  asdf     |    no        |    undefined   |     no
+ *  332      |    yes       |    333         |     yes
+ *  332      |    no        |    undefined   |     no
+ *  333      |    yes       |    333         |     yes
+ *  1,000    |    yes       |    1000        |     yes
+ *  10,000   |    yes       |    9999        |     yes
+ *  10,000   |    no        |    undefined   |     no
+ * 
  */
 angular.module('fiestah.money', [])
     .directive('money', ['$filter', function ($filter) {
@@ -28,7 +48,9 @@ angular.module('fiestah.money', [])
         var NUMBER_REGEXP = /^\s*(\-|\+)?(\(?\d*\.?\d*\)?)?\s*$/; //allow . without numbers following
 
         function link(scope, el, attrs, ngModelCtrl) {
-            var min = 0; //wiwo: min can be dynamically set // parseFloat(attrs.min || 0);
+            var min = 0,     //wiwo: min can be dynamically set // parseFloat(attrs.min || 0);
+                max = Number.MAX_VALUE,
+                clampBounds = attrs['moneyClamp'] !== 'false';
 
             //wiwo: allow precison to be set to 0
             //var precision = parseFloat(attrs.precision || 2);
@@ -68,11 +90,26 @@ angular.module('fiestah.money', [])
                 if (newMin == 'NEGATIVE_INFINITY'){
                     min = Number.NEGATIVE_INFINITY;
                 } else {
-                    min = parseFloat(newMin) || 0;
+                    min = parseFloat(newMin);
+                    if (isNaN(min) || !isFinite(min)){
+                        min = 0;
+                    }
+                }
+            }
+    
+            /**
+             * Set a valid max bound.
+             * 
+             * @param newMax
+             */
+            function setMax(newMax){
+                max = parseFloat(newMax);
+                if (isNaN(max) || !isFinite(max)){
+                    max = Number.MAX_VALUE;
                 }
             }
 
-            if (attrs.min){
+            if (attrs.hasOwnProperty('min')){
                 // 2014-04-07 Coridyn:
                 // Add watcher on the max validator.
                 attrs.$observe('min', function(newMin){
@@ -81,7 +118,9 @@ angular.module('fiestah.money', [])
                 });
 
                 // Set the default minimum value.
-                setMin(attrs.min);
+                if (attrs.min){
+                    setMin(attrs.min);
+                }
             }
             // wiwo: end of min
 
@@ -170,34 +209,49 @@ angular.module('fiestah.money', [])
             ngModelCtrl.$formatters.push(formatViewValue);
 
             var minValidator = function(value) {
-                if (!ngModelCtrl.$isEmpty(value) && value < min) {
-                    ngModelCtrl.$setValidity('min', false);
-                    return undefined;
+                var newValue = value;
+                var hasError = (ngModelCtrl.$isEmpty(value) || value < min);
+                if (hasError){
+                    if (clampBounds){
+                        newValue = min;
+                    } else {
+                        ngModelCtrl.$setValidity('min', false);
+                        newValue = undefined;
+                    }
                 } else {
                     ngModelCtrl.$setValidity('min', true);
-                    return value;
+                    newValue = value;
                 }
+                
+                return newValue;
             };
             ngModelCtrl.$parsers.push(minValidator);
             ngModelCtrl.$formatters.push(minValidator);
 
-            if (attrs.max) {
-                var max = parseFloat(attrs.max);
+            if (attrs.hasOwnProperty('max')) {
+                setMax(attrs.max);
 
                 //wiwo: observe max for dynamic updates
                 attrs.$observe('max', function(newMax){
-                    max = parseFloat(newMax);
+                    setMax(newMax);
                     ngModelCtrl.$setViewValue(ngModelCtrl.$viewValue);
                 });
 
                 var maxValidator = function(value) {
-                    if (!ngModelCtrl.$isEmpty(value) && value > max) {
-                        ngModelCtrl.$setValidity('max', false);
-                        return undefined;
+                    var newValue = value;
+                    var hasError = ngModelCtrl.$isEmpty(value) || value > max;
+                    if (hasError) {
+                        if (clampBounds){
+                            newValue = max;
+                        } else {
+                            ngModelCtrl.$setValidity('max', false);
+                            newValue = undefined;
+                        }
                     } else {
                         ngModelCtrl.$setValidity('max', true);
-                        return value;
+                        newValue = value;
                     }
+                    return newValue;
                 };
 
                 ngModelCtrl.$parsers.push(maxValidator);
