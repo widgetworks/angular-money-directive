@@ -199,8 +199,8 @@ angular.module('fiestah.money', [])
                         : (empty ? value : parseFloat(value));
                 } else {
                     // Render the last valid input in the field
-                    ngModelCtrl.$setViewValue(formatViewValue(lastValidValue));
-                    ngModelCtrl.$render();
+                    //ngModelCtrl.$setViewValue(formatViewValue(lastValidValue));
+                    setModelValue(lastValidValue);
                 }
 
                 ngModelCtrl.$setValidity('number', true);
@@ -269,8 +269,18 @@ angular.module('fiestah.money', [])
             }
 
             el.bind('blur', function () {
+                // Force the new model value.
                 var value = ngModelCtrl.$modelValue;
+                setModelValue(value);
 
+                //if (value) {
+                //    ngModelCtrl.$viewValue = formatPrecision(value);
+                //    ngModelCtrl.$render();
+                //}
+            });
+
+
+            function setModelValue(value){
                 // wiwo: 2013-11-01 Coridyn:
                 // Run through all of the formatters.
                 if (value){
@@ -280,12 +290,7 @@ angular.module('fiestah.money', [])
                     ngModelCtrl.$viewValue = value;
                     ngModelCtrl.$render();
                 }
-
-                //if (value) {
-                //    ngModelCtrl.$viewValue = formatPrecision(value);
-                //    ngModelCtrl.$render();
-                //}
-            });
+            }
         }
 
         return {
